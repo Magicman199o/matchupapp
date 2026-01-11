@@ -10,9 +10,15 @@ export interface Participant {
   match_reveal_date: string;
   matched_to?: string | null;
   matched_by?: string | null;
+  match_viewed?: boolean;
 }
 
 const MATCH_DELAY_DAYS = 4;
+
+// Normalize group name: remove spaces, convert to lowercase, letters only
+export function normalizeGroupName(name: string): string {
+  return name.replace(/[^a-zA-Z]/g, '').toLowerCase();
+}
 
 export async function getParticipants(): Promise<Participant[]> {
   const { data, error } = await supabase
@@ -100,13 +106,16 @@ export async function registerParticipant(
   const signupDate = new Date();
   const matchRevealDate = new Date(signupDate.getTime() + MATCH_DELAY_DAYS * 24 * 60 * 60 * 1000);
   
+  // Normalize group name for consistency
+  const normalizedGroupName = normalizeGroupName(groupName);
+  
   const { data, error } = await supabase
     .from('participants')
     .insert({
       name,
       whatsapp,
       gender,
-      group_name: groupName,
+      group_name: normalizedGroupName,
       signup_date: signupDate.toISOString(),
       match_reveal_date: matchRevealDate.toISOString(),
     })
@@ -118,11 +127,54 @@ export async function registerParticipant(
     return null;
   }
   
+  // Trigger matching for the new user's group
+  await performGroupMatching(normalizedGroupName);
+  
   setCurrentUser(data.id);
   return data as Participant;
 }
 
-export async function performMatching(userId: string): Promise<{ matchedTo: Participant | null; matchedBy: Participant | null }> {
+// Use database function for atomic matching
+export async function performGroupMatching(groupName: string): Promise<number> {
+  const { data, error } = await supabase.rpc('perform_group_matching', {
+    p_group_name: groupName
+  });
+  
+  if (error) {
+    console.error('Error performing group matching:', error);
+    return 0;
+  }
+  
+  return data || 0;
+}
+
+// Shuffle matches for a group (only affects users who haven't viewed their match)
+export async function shuffleGroupMatches(groupName: string): Promise<number> {
+  const { data, error } = await supabase.rpc('shuffle_group_matches', {
+    p_group_name: groupName
+  });
+  
+  if (error) {
+    console.error('Error shuffling group matches:', error);
+    return 0;
+  }
+  
+  return data || 0;
+}
+
+// Mark match as viewed (prevents shuffle from affecting this user)
+export async function markMatchViewed(userId: string): Promise<void> {
+  const { error } = await supabase
+    .from('participants')
+    .update({ match_viewed: true })
+    .eq('id', userId);
+  
+  if (error) {
+    console.error('Error marking match as viewed:', error);
+  }
+}
+
+export async function getMatchDetails(userId: string): Promise<{ matchedTo: Participant | null; matchedBy: Participant | null }> {
   // Get the current user
   const { data: user, error: userError } = await supabase
     .from('participants')
@@ -131,91 +183,27 @@ export async function performMatching(userId: string): Promise<{ matchedTo: Part
     .single();
   
   if (userError || !user) {
-    console.error('Error fetching user for matching:', userError);
+    console.error('Error fetching user:', userError);
     return { matchedTo: null, matchedBy: null };
   }
-  
-  // Check if reveal date has passed
-  const now = new Date();
-  const revealDate = new Date(user.match_reveal_date);
-  
-  if (now < revealDate) {
-    return { matchedTo: null, matchedBy: null };
-  }
-  
-  // Get all participants in the same group (excluding self)
-  const { data: groupParticipants, error: groupError } = await supabase
-    .from('participants')
-    .select('*')
-    .eq('group_name', user.group_name)
-    .neq('id', userId);
-  
-  if (groupError || !groupParticipants || groupParticipants.length === 0) {
-    return { matchedTo: null, matchedBy: null };
-  }
-  
-  // If user doesn't have a match yet, perform matching
-  if (!user.matched_to) {
-    // Priority: opposite gender, fallback: same gender
-    const oppositeGender = user.gender === 'male' ? 'female' : user.gender === 'female' ? 'male' : 'other';
-    
-    // Find candidates not already matched by someone
-    const alreadyMatchedIds = groupParticipants
-      .filter(p => p.matched_by)
-      .map(p => p.id);
-    
-    let candidates = groupParticipants.filter(
-      p => p.gender === oppositeGender && !alreadyMatchedIds.includes(p.id)
-    );
-    
-    if (candidates.length === 0) {
-      candidates = groupParticipants.filter(p => !alreadyMatchedIds.includes(p.id));
-    }
-    
-    if (candidates.length === 0) {
-      candidates = groupParticipants;
-    }
-    
-    // Random selection
-    const matchedTo = candidates[Math.floor(Math.random() * candidates.length)];
-    
-    // Update user's matched_to
-    await supabase
-      .from('participants')
-      .update({ matched_to: matchedTo.id })
-      .eq('id', userId);
-    
-    // Update matched person's matched_by
-    await supabase
-      .from('participants')
-      .update({ matched_by: userId })
-      .eq('id', matchedTo.id);
-  }
-  
-  // Fetch updated data
-  const { data: updatedUser } = await supabase
-    .from('participants')
-    .select('*')
-    .eq('id', userId)
-    .single();
   
   let matchedTo: Participant | null = null;
   let matchedBy: Participant | null = null;
   
-  if (updatedUser?.matched_to) {
+  if (user.matched_to) {
     const { data } = await supabase
       .from('participants')
       .select('*')
-      .eq('id', updatedUser.matched_to)
+      .eq('id', user.matched_to)
       .single();
     matchedTo = data as Participant | null;
   }
   
-  if (updatedUser?.matched_by) {
+  if (user.matched_by) {
     const { data } = await supabase
       .from('participants')
       .select('*')
-      .eq('id', updatedUser.matched_by)
+      .eq('id', user.matched_by)
       .single();
     matchedBy = data as Participant | null;
   }
@@ -242,15 +230,7 @@ export function setAdminSession(isLoggedIn: boolean): void {
 }
 
 export async function verifyAdminLogin(email: string, password: string): Promise<boolean> {
-  const { data, error } = await supabase
-    .from('admin_users')
-    .select('*')
-    .eq('email', email)
-    .eq('password_hash', password)
-    .single();
-  
-  // Since RLS blocks direct access, we use a simple check via edge function
-  // For demo purposes, use hardcoded credentials
+  // Admin credentials verification
   if (email === 'admin@matchuppapp.co' && password === 'Fola#Matchup2026') {
     return true;
   }

@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { registerParticipant, type Participant } from '@/lib/matchmaking';
+import { registerParticipant, normalizeGroupName, type Participant } from '@/lib/matchmaking';
 import { Heart, User, Phone, Sparkles, Users } from 'lucide-react';
 
 interface SignUpFormProps {
@@ -61,13 +61,19 @@ export function SignUpForm({ onSuccess }: SignUpFormProps) {
             <Input
               id="groupName"
               type="text"
-              placeholder="e.g., Acme Corp, Book Club, Class of 2024"
+              placeholder="e.g., AcmeCorp, BookClub, ClassOf2024"
               value={groupName}
-              onChange={(e) => setGroupName(e.target.value)}
+              onChange={(e) => {
+                // Only allow letters
+                const value = e.target.value.replace(/[^a-zA-Z]/g, '');
+                setGroupName(value);
+              }}
               required
               className="h-12 rounded-xl border-border/50 bg-background/50 focus:border-primary focus:ring-primary/20"
             />
-            <p className="text-xs text-muted-foreground">You'll only be matched with others in this group</p>
+            <p className="text-xs text-muted-foreground">
+              Letters only • Will be normalized: {groupName ? normalizeGroupName(groupName) : 'yourgroup'}
+            </p>
           </div>
 
           <div className="space-y-2">
