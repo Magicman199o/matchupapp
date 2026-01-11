@@ -4,8 +4,7 @@ import { SignUpForm } from '@/components/SignUpForm';
 import { Dashboard } from '@/components/Dashboard';
 import { FloatingHearts } from '@/components/FloatingHearts';
 import { getCurrentUser, type Participant } from '@/lib/matchmaking';
-import { Heart, Sparkles, Users, Clock, MessageCircle, Shield } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Heart, Sparkles, Users, Clock, MessageCircle } from 'lucide-react';
 
 const Index = () => {
   const [currentUser, setCurrentUser] = useState<Participant | null>(null);
@@ -78,17 +77,9 @@ const Index = () => {
             <Heart className="w-6 h-6 text-primary animate-heart" />
             <span className="font-display font-bold text-xl text-gradient">Matchup</span>
           </div>
-          <div className="flex items-center gap-3">
-            <Link to="/admin">
-              <Button variant="ghost" size="sm">
-                <Shield className="w-4 h-4" />
-                <span className="hidden sm:inline">Admin</span>
-              </Button>
-            </Link>
-            <Button variant="hero-outline" onClick={() => setShowSignUp(true)}>
-              Join Now
-            </Button>
-          </div>
+          <Button variant="hero-outline" onClick={() => setShowSignUp(true)}>
+            Join Now
+          </Button>
         </div>
       </header>
 

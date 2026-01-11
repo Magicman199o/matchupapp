@@ -251,7 +251,7 @@ export async function verifyAdminLogin(email: string, password: string): Promise
   
   // Since RLS blocks direct access, we use a simple check via edge function
   // For demo purposes, use hardcoded credentials
-  if (email === 'admin@matchup.com' && password === 'admin123') {
+  if (email === 'admin@matchuppapp.co' && password === 'Fola#Matchup2026') {
     return true;
   }
   
