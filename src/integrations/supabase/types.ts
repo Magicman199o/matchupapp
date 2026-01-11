@@ -14,7 +14,84 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      admin_users: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          password_hash: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          password_hash: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          password_hash?: string
+        }
+        Relationships: []
+      }
+      participants: {
+        Row: {
+          created_at: string
+          gender: string
+          group_name: string
+          id: string
+          match_reveal_date: string
+          matched_by: string | null
+          matched_to: string | null
+          name: string
+          signup_date: string
+          updated_at: string
+          whatsapp: string
+        }
+        Insert: {
+          created_at?: string
+          gender: string
+          group_name: string
+          id?: string
+          match_reveal_date: string
+          matched_by?: string | null
+          matched_to?: string | null
+          name: string
+          signup_date?: string
+          updated_at?: string
+          whatsapp: string
+        }
+        Update: {
+          created_at?: string
+          gender?: string
+          group_name?: string
+          id?: string
+          match_reveal_date?: string
+          matched_by?: string | null
+          matched_to?: string | null
+          name?: string
+          signup_date?: string
+          updated_at?: string
+          whatsapp?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "participants_matched_by_fkey"
+            columns: ["matched_by"]
+            isOneToOne: false
+            referencedRelation: "participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "participants_matched_to_fkey"
+            columns: ["matched_to"]
+            isOneToOne: false
+            referencedRelation: "participants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

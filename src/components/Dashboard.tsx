@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { CountdownTimer } from '@/components/CountdownTimer';
 import { MatchReveal } from '@/components/MatchReveal';
 import { type Participant, performMatching, clearCurrentUser } from '@/lib/matchmaking';
-import { LogOut, Heart, Sparkles } from 'lucide-react';
+import { LogOut, Heart, Sparkles, Users } from 'lucide-react';
 
 interface DashboardProps {
   participant: Participant;
@@ -14,18 +14,24 @@ export function Dashboard({ participant, onLogout }: DashboardProps) {
   const [matchedTo, setMatchedTo] = useState<Participant | null>(null);
   const [matchedBy, setMatchedBy] = useState<Participant | null>(null);
   const [isRevealed, setIsRevealed] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const revealDate = new Date(participant.matchRevealDate);
+  const revealDate = new Date(participant.match_reveal_date);
   const now = new Date();
   const shouldReveal = now >= revealDate;
 
   useEffect(() => {
-    if (shouldReveal) {
-      const { matchedTo: to, matchedBy: by } = performMatching(participant.id);
-      setMatchedTo(to);
-      setMatchedBy(by);
-      setIsRevealed(true);
-    }
+    const checkMatching = async () => {
+      if (shouldReveal) {
+        const { matchedTo: to, matchedBy: by } = await performMatching(participant.id);
+        setMatchedTo(to);
+        setMatchedBy(by);
+        setIsRevealed(true);
+      }
+      setIsLoading(false);
+    };
+    
+    checkMatching();
   }, [shouldReveal, participant.id]);
 
   const handleLogout = () => {
@@ -33,12 +39,20 @@ export function Dashboard({ participant, onLogout }: DashboardProps) {
     onLogout();
   };
 
-  const handleCountdownComplete = () => {
-    const { matchedTo: to, matchedBy: by } = performMatching(participant.id);
+  const handleCountdownComplete = async () => {
+    const { matchedTo: to, matchedBy: by } = await performMatching(participant.id);
     setMatchedTo(to);
     setMatchedBy(by);
     setIsRevealed(true);
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-hero flex items-center justify-center">
+        <Heart className="w-12 h-12 text-primary animate-heart" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-hero">
@@ -62,6 +76,16 @@ export function Dashboard({ participant, onLogout }: DashboardProps) {
       </header>
 
       <main className="container mx-auto px-4 py-12">
+        {/* Group Badge */}
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center gap-2 px-4 py-2 bg-secondary rounded-full">
+            <Users className="w-4 h-4 text-primary" />
+            <span className="text-sm font-medium text-secondary-foreground">
+              Group: {participant.group_name}
+            </span>
+          </div>
+        </div>
+
         {!isRevealed ? (
           <div className="max-w-3xl mx-auto text-center">
             <div className="mb-10 animate-slide-up">
@@ -72,7 +96,7 @@ export function Dashboard({ participant, onLogout }: DashboardProps) {
                 Your match is being <span className="text-gradient">prepared!</span>
               </h1>
               <p className="text-muted-foreground text-lg max-w-xl mx-auto">
-                Hold tight, {participant.name}! Our magical matching algorithm is working to find you the perfect connection.
+                Hold tight, {participant.name}! Our magical matching algorithm is working to find you the perfect connection within <span className="font-semibold text-primary">{participant.group_name}</span>.
               </p>
             </div>
 
@@ -86,7 +110,7 @@ export function Dashboard({ participant, onLogout }: DashboardProps) {
               <ul className="text-sm text-muted-foreground space-y-2 text-left">
                 <li className="flex items-center gap-2">
                   <span className="text-primary">1.</span>
-                  We wait for more participants to join
+                  We wait for more participants in your group
                 </li>
                 <li className="flex items-center gap-2">
                   <span className="text-primary">2.</span>
