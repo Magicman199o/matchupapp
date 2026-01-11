@@ -42,6 +42,7 @@ export type Database = {
           group_name: string
           id: string
           match_reveal_date: string
+          match_viewed: boolean | null
           matched_by: string | null
           matched_to: string | null
           name: string
@@ -55,6 +56,7 @@ export type Database = {
           group_name: string
           id?: string
           match_reveal_date: string
+          match_viewed?: boolean | null
           matched_by?: string | null
           matched_to?: string | null
           name: string
@@ -68,6 +70,7 @@ export type Database = {
           group_name?: string
           id?: string
           match_reveal_date?: string
+          match_viewed?: boolean | null
           matched_by?: string | null
           matched_to?: string | null
           name?: string
@@ -97,7 +100,11 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      perform_group_matching: {
+        Args: { p_group_name: string }
+        Returns: number
+      }
+      shuffle_group_matches: { Args: { p_group_name: string }; Returns: number }
     }
     Enums: {
       [_ in never]: never

@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { CountdownTimer } from '@/components/CountdownTimer';
 import { MatchReveal } from '@/components/MatchReveal';
-import { type Participant, performMatching, clearCurrentUser } from '@/lib/matchmaking';
-import { LogOut, Heart, Sparkles, Users } from 'lucide-react';
+import { type Participant, getMatchDetails, markMatchViewed, clearCurrentUser } from '@/lib/matchmaking';
+import { LogOut, Heart, Sparkles, Users, Clock } from 'lucide-react';
 
 interface DashboardProps {
   participant: Participant;
@@ -15,24 +15,32 @@ export function Dashboard({ participant, onLogout }: DashboardProps) {
   const [matchedBy, setMatchedBy] = useState<Participant | null>(null);
   const [isRevealed, setIsRevealed] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [hasMatch, setHasMatch] = useState(false);
 
   const revealDate = new Date(participant.match_reveal_date);
   const now = new Date();
-  const shouldReveal = now >= revealDate;
+  const canReveal = now >= revealDate;
 
   useEffect(() => {
     const checkMatching = async () => {
-      if (shouldReveal) {
-        const { matchedTo: to, matchedBy: by } = await performMatching(participant.id);
-        setMatchedTo(to);
-        setMatchedBy(by);
+      // Always fetch match details to check if user has been matched
+      const { matchedTo: to, matchedBy: by } = await getMatchDetails(participant.id);
+      setMatchedTo(to);
+      setMatchedBy(by);
+      setHasMatch(!!to || !!by);
+      
+      // Only reveal if countdown is complete
+      if (canReveal && (to || by)) {
+        // Mark match as viewed when user sees it
+        await markMatchViewed(participant.id);
         setIsRevealed(true);
       }
+      
       setIsLoading(false);
     };
     
     checkMatching();
-  }, [shouldReveal, participant.id]);
+  }, [canReveal, participant.id]);
 
   const handleLogout = () => {
     clearCurrentUser();
@@ -40,10 +48,14 @@ export function Dashboard({ participant, onLogout }: DashboardProps) {
   };
 
   const handleCountdownComplete = async () => {
-    const { matchedTo: to, matchedBy: by } = await performMatching(participant.id);
+    const { matchedTo: to, matchedBy: by } = await getMatchDetails(participant.id);
     setMatchedTo(to);
     setMatchedBy(by);
-    setIsRevealed(true);
+    
+    if (to || by) {
+      await markMatchViewed(participant.id);
+      setIsRevealed(true);
+    }
   };
 
   if (isLoading) {
@@ -93,39 +105,60 @@ export function Dashboard({ participant, onLogout }: DashboardProps) {
                 <Sparkles className="w-10 h-10 text-primary" />
               </div>
               <h1 className="text-3xl md:text-4xl font-display font-bold mb-4">
-                Your match is being <span className="text-gradient">prepared!</span>
+                {hasMatch ? (
+                  <>Your match is <span className="text-gradient">ready!</span></>
+                ) : (
+                  <>Awaiting a <span className="text-gradient">match</span></>
+                )}
               </h1>
               <p className="text-muted-foreground text-lg max-w-xl mx-auto">
-                Hold tight, {participant.name}! Our magical matching algorithm is working to find you the perfect connection within <span className="font-semibold text-primary">{participant.group_name}</span>.
+                {hasMatch ? (
+                  <>Hold tight, {participant.name}! Your match within <span className="font-semibold text-primary">{participant.group_name}</span> will be revealed after the countdown.</>
+                ) : (
+                  <>We're waiting for more participants to join <span className="font-semibold text-primary">{participant.group_name}</span>. You'll be matched as soon as someone is available!</>
+                )}
               </p>
             </div>
 
-            <CountdownTimer 
-              targetDate={revealDate} 
-              onComplete={handleCountdownComplete}
-            />
+            {!canReveal ? (
+              <>
+                <CountdownTimer 
+                  targetDate={revealDate} 
+                  onComplete={handleCountdownComplete}
+                />
 
-            <div className="mt-16 p-6 bg-card/50 rounded-2xl border border-border/50 max-w-md mx-auto">
-              <h3 className="font-display font-semibold mb-2">How it works</h3>
-              <ul className="text-sm text-muted-foreground space-y-2 text-left">
-                <li className="flex items-center gap-2">
-                  <span className="text-primary">1.</span>
-                  We wait for more participants in your group
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="text-primary">2.</span>
-                  After 4 days, matches are revealed
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="text-primary">3.</span>
-                  You'll see who you matched with AND who matched with you
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="text-primary">4.</span>
-                  Connect via WhatsApp and make a new friend!
-                </li>
-              </ul>
-            </div>
+                <div className="mt-16 p-6 bg-card/50 rounded-2xl border border-border/50 max-w-md mx-auto">
+                  <h3 className="font-display font-semibold mb-2">How it works</h3>
+                  <ul className="text-sm text-muted-foreground space-y-2 text-left">
+                    <li className="flex items-center gap-2">
+                      <span className="text-primary">1.</span>
+                      We wait for more participants in your group
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <span className="text-primary">2.</span>
+                      After 4 days, matches are revealed
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <span className="text-primary">3.</span>
+                      You'll see who you matched with AND who matched with you
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <span className="text-primary">4.</span>
+                      Connect via WhatsApp and make a new friend!
+                    </li>
+                  </ul>
+                </div>
+              </>
+            ) : (
+              <div className="p-8 bg-card/50 rounded-2xl border border-border/50 max-w-md mx-auto">
+                <Clock className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                <h3 className="font-display font-semibold mb-2">Waiting for a match</h3>
+                <p className="text-sm text-muted-foreground">
+                  Your countdown has completed, but no one has been matched with you yet. 
+                  Check back soon as more participants join your group!
+                </p>
+              </div>
+            )}
           </div>
         ) : (
           <MatchReveal matchedTo={matchedTo} matchedBy={matchedBy} />

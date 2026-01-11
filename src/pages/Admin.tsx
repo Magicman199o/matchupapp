@@ -9,6 +9,8 @@ import {
   getAdminSession, 
   setAdminSession, 
   verifyAdminLogin,
+  performGroupMatching,
+  shuffleGroupMatches,
   type Participant 
 } from '@/lib/matchmaking';
 import { 
@@ -20,10 +22,16 @@ import {
   UserCheck,
   Link as LinkIcon,
   Calendar,
-  Phone
+  Phone,
+  Shuffle,
+  Play,
+  Eye,
+  EyeOff,
+  Clock
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
+import { toast } from 'sonner';
 
 const Admin = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -36,6 +44,8 @@ const Admin = () => {
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [allParticipants, setAllParticipants] = useState<Participant[]>([]);
+  const [isShuffling, setIsShuffling] = useState(false);
+  const [isMatching, setIsMatching] = useState(false);
 
   useEffect(() => {
     const session = getAdminSession();
@@ -87,6 +97,36 @@ const Admin = () => {
     setIsLoggedIn(false);
   };
 
+  const handleMatchGroup = async (groupName: string) => {
+    setIsMatching(true);
+    try {
+      const matchedCount = await performGroupMatching(groupName);
+      toast.success(`Successfully matched ${matchedCount} participants in ${groupName}`);
+      await loadData();
+      if (selectedGroup === groupName) {
+        await loadGroupParticipants(groupName);
+      }
+    } catch (error) {
+      toast.error('Failed to perform matching');
+    }
+    setIsMatching(false);
+  };
+
+  const handleShuffleGroup = async (groupName: string) => {
+    setIsShuffling(true);
+    try {
+      const affectedCount = await shuffleGroupMatches(groupName);
+      toast.success(`Shuffled matches for ${affectedCount} participants who haven't viewed yet`);
+      await loadData();
+      if (selectedGroup === groupName) {
+        await loadGroupParticipants(groupName);
+      }
+    } catch (error) {
+      toast.error('Failed to shuffle matches');
+    }
+    setIsShuffling(false);
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-hero flex items-center justify-center">
@@ -123,7 +163,7 @@ const Admin = () => {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="admin@matchup.com"
+                  placeholder="Enter your email"
                   required
                   className="h-12 rounded-xl"
                 />
@@ -153,14 +193,13 @@ const Admin = () => {
               </Link>
             </div>
           </div>
-          
-          <p className="text-center text-xs text-muted-foreground mt-4">
-            Demo credentials: admin@matchup.com / admin123
-          </p>
         </div>
       </div>
     );
   }
+
+  const unmatchedCount = allParticipants.filter(p => !p.matched_to && !p.matched_by).length;
+  const viewedCount = allParticipants.filter(p => p.match_viewed).length;
 
   return (
     <div className="min-h-screen bg-gradient-hero">
@@ -188,7 +227,7 @@ const Admin = () => {
 
       <main className="container mx-auto px-4 py-8">
         {/* Stats Overview */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
           <StatCard 
             icon={<Users className="w-5 h-5" />}
             label="Total Signups"
@@ -205,9 +244,14 @@ const Admin = () => {
             value={allParticipants.filter(p => p.matched_to).length}
           />
           <StatCard 
-            icon={<LinkIcon className="w-5 h-5" />}
-            label="Connections Made"
-            value={allParticipants.filter(p => p.matched_to).length}
+            icon={<Clock className="w-5 h-5" />}
+            label="Awaiting Match"
+            value={unmatchedCount}
+          />
+          <StatCard 
+            icon={<Eye className="w-5 h-5" />}
+            label="Viewed"
+            value={viewedCount}
           />
         </div>
 
@@ -224,24 +268,70 @@ const Admin = () => {
                 <p className="text-muted-foreground text-sm">No groups yet</p>
               ) : (
                 <div className="space-y-2">
-                  {groups.map((group) => (
-                    <button
-                      key={group.name}
-                      onClick={() => setSelectedGroup(group.name)}
-                      className={`w-full text-left p-3 rounded-xl transition-all ${
-                        selectedGroup === group.name 
-                          ? 'bg-primary/10 border-primary/30 border' 
-                          : 'bg-background/50 hover:bg-background border border-transparent'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="font-medium">{group.name}</span>
-                        <span className="text-xs bg-secondary px-2 py-1 rounded-full">
-                          {group.count} members
-                        </span>
+                  {groups.map((group) => {
+                    const groupParticipants = allParticipants.filter(p => p.group_name === group.name);
+                    const matchedInGroup = groupParticipants.filter(p => p.matched_to).length;
+                    const viewedInGroup = groupParticipants.filter(p => p.match_viewed).length;
+                    const canShuffle = matchedInGroup > 0 && viewedInGroup < matchedInGroup;
+                    
+                    return (
+                      <div
+                        key={group.name}
+                        className={`p-3 rounded-xl transition-all ${
+                          selectedGroup === group.name 
+                            ? 'bg-primary/10 border-primary/30 border' 
+                            : 'bg-background/50 hover:bg-background border border-transparent'
+                        }`}
+                      >
+                        <button
+                          onClick={() => setSelectedGroup(group.name)}
+                          className="w-full text-left"
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="font-medium">{group.name}</span>
+                            <span className="text-xs bg-secondary px-2 py-1 rounded-full">
+                              {group.count} members
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <span>{matchedInGroup} matched</span>
+                            <span>•</span>
+                            <span>{viewedInGroup} viewed</span>
+                          </div>
+                        </button>
+                        
+                        <div className="flex gap-2 mt-3">
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleMatchGroup(group.name);
+                            }}
+                            disabled={isMatching}
+                            className="flex-1 text-xs"
+                          >
+                            <Play className="w-3 h-3 mr-1" />
+                            Match
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleShuffleGroup(group.name);
+                            }}
+                            disabled={isShuffling || !canShuffle}
+                            className="flex-1 text-xs"
+                            title={!canShuffle ? "All matched users have viewed their matches" : "Shuffle unviewed matches"}
+                          >
+                            <Shuffle className="w-3 h-3 mr-1" />
+                            Shuffle
+                          </Button>
+                        </div>
                       </div>
-                    </button>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -319,6 +409,16 @@ function ParticipantsTable({ participants, allParticipants }: ParticipantsTableP
     return p?.name || '-';
   };
 
+  const getMatchStatus = (p: Participant) => {
+    if (!p.matched_to && !p.matched_by) {
+      return { label: 'Awaiting', color: 'bg-yellow-500/10 text-yellow-600' };
+    }
+    if (p.match_viewed) {
+      return { label: 'Viewed', color: 'bg-green-500/10 text-green-600' };
+    }
+    return { label: 'Matched', color: 'bg-blue-500/10 text-blue-600' };
+  };
+
   if (participants.length === 0) {
     return <p className="text-muted-foreground text-sm">No participants found</p>;
   }
@@ -331,60 +431,62 @@ function ParticipantsTable({ participants, allParticipants }: ParticipantsTableP
             <th className="text-left py-3 px-2 font-medium">Name</th>
             <th className="text-left py-3 px-2 font-medium hidden sm:table-cell">Group</th>
             <th className="text-left py-3 px-2 font-medium hidden md:table-cell">Gender</th>
-            <th className="text-left py-3 px-2 font-medium hidden lg:table-cell">Signup</th>
+            <th className="text-left py-3 px-2 font-medium">Status</th>
             <th className="text-left py-3 px-2 font-medium">Matched To</th>
             <th className="text-left py-3 px-2 font-medium">Matched By</th>
           </tr>
         </thead>
         <tbody>
-          {participants.map((p) => (
-            <tr key={p.id} className="border-b border-border/50 hover:bg-background/50">
-              <td className="py-3 px-2">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center text-primary text-xs font-bold">
-                    {p.name.charAt(0).toUpperCase()}
+          {participants.map((p) => {
+            const status = getMatchStatus(p);
+            return (
+              <tr key={p.id} className="border-b border-border/50 hover:bg-background/50">
+                <td className="py-3 px-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center text-primary text-xs font-bold">
+                      {p.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <p className="font-medium">{p.name}</p>
+                      <p className="text-xs text-muted-foreground flex items-center gap-1 sm:hidden">
+                        <Phone className="w-3 h-3" />
+                        {p.whatsapp}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="font-medium">{p.name}</p>
-                    <p className="text-xs text-muted-foreground flex items-center gap-1 sm:hidden">
-                      <Phone className="w-3 h-3" />
-                      {p.whatsapp}
-                    </p>
-                  </div>
-                </div>
-              </td>
-              <td className="py-3 px-2 hidden sm:table-cell">
-                <span className="text-xs bg-secondary px-2 py-1 rounded-full">
-                  {p.group_name}
-                </span>
-              </td>
-              <td className="py-3 px-2 capitalize hidden md:table-cell">{p.gender}</td>
-              <td className="py-3 px-2 hidden lg:table-cell">
-                <div className="flex items-center gap-1 text-muted-foreground">
-                  <Calendar className="w-3 h-3" />
-                  {format(new Date(p.signup_date), 'MMM d, yyyy')}
-                </div>
-              </td>
-              <td className="py-3 px-2">
-                {p.matched_to ? (
-                  <span className="text-primary font-medium">
-                    {getParticipantName(p.matched_to)}
+                </td>
+                <td className="py-3 px-2 hidden sm:table-cell">
+                  <span className="text-xs bg-secondary px-2 py-1 rounded-full">
+                    {p.group_name}
                   </span>
-                ) : (
-                  <span className="text-muted-foreground">-</span>
-                )}
-              </td>
-              <td className="py-3 px-2">
-                {p.matched_by ? (
-                  <span className="text-accent font-medium">
-                    {getParticipantName(p.matched_by)}
+                </td>
+                <td className="py-3 px-2 capitalize hidden md:table-cell">{p.gender}</td>
+                <td className="py-3 px-2">
+                  <span className={`text-xs px-2 py-1 rounded-full ${status.color}`}>
+                    {status.label}
                   </span>
-                ) : (
-                  <span className="text-muted-foreground">-</span>
-                )}
-              </td>
-            </tr>
-          ))}
+                </td>
+                <td className="py-3 px-2">
+                  {p.matched_to ? (
+                    <span className="text-primary font-medium">
+                      {getParticipantName(p.matched_to)}
+                    </span>
+                  ) : (
+                    <span className="text-muted-foreground">-</span>
+                  )}
+                </td>
+                <td className="py-3 px-2">
+                  {p.matched_by ? (
+                    <span className="text-accent font-medium">
+                      {getParticipantName(p.matched_by)}
+                    </span>
+                  ) : (
+                    <span className="text-muted-foreground">-</span>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>
