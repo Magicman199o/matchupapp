@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { registerParticipant, type Participant } from '@/lib/matchmaking';
-import { Heart, User, Phone, Sparkles } from 'lucide-react';
+import { Heart, User, Phone, Sparkles, Users } from 'lucide-react';
 
 interface SignUpFormProps {
   onSuccess: (participant: Participant) => void;
@@ -14,18 +14,24 @@ export function SignUpForm({ onSuccess }: SignUpFormProps) {
   const [name, setName] = useState('');
   const [whatsapp, setWhatsapp] = useState('');
   const [gender, setGender] = useState<'male' | 'female' | 'other'>('male');
+  const [groupName, setGroupName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setError('');
     
-    // Simulate a brief delay for UX
-    await new Promise(resolve => setTimeout(resolve, 800));
+    const participant = await registerParticipant(name, whatsapp, gender, groupName);
     
-    const participant = registerParticipant(name, whatsapp, gender);
+    if (participant) {
+      onSuccess(participant);
+    } else {
+      setError('Failed to register. Please try again.');
+    }
+    
     setIsLoading(false);
-    onSuccess(participant);
   };
 
   return (
@@ -40,7 +46,30 @@ export function SignUpForm({ onSuccess }: SignUpFormProps) {
         <h2 className="text-2xl font-display font-bold text-center mb-2">Join the Match</h2>
         <p className="text-muted-foreground text-center mb-8">Enter your details to get matched</p>
         
+        {error && (
+          <div className="mb-4 p-3 bg-destructive/10 text-destructive text-sm rounded-xl text-center">
+            {error}
+          </div>
+        )}
+        
         <div className="space-y-5">
+          <div className="space-y-2">
+            <Label htmlFor="groupName" className="text-sm font-medium flex items-center gap-2">
+              <Users className="w-4 h-4 text-primary" />
+              Group / Organization Name
+            </Label>
+            <Input
+              id="groupName"
+              type="text"
+              placeholder="e.g., Acme Corp, Book Club, Class of 2024"
+              value={groupName}
+              onChange={(e) => setGroupName(e.target.value)}
+              required
+              className="h-12 rounded-xl border-border/50 bg-background/50 focus:border-primary focus:ring-primary/20"
+            />
+            <p className="text-xs text-muted-foreground">You'll only be matched with others in this group</p>
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="name" className="text-sm font-medium flex items-center gap-2">
               <User className="w-4 h-4 text-primary" />
@@ -105,7 +134,7 @@ export function SignUpForm({ onSuccess }: SignUpFormProps) {
           variant="hero" 
           size="lg" 
           className="w-full mt-8"
-          disabled={isLoading || !name || !whatsapp}
+          disabled={isLoading || !name || !whatsapp || !groupName}
         >
           {isLoading ? (
             <span className="flex items-center gap-2">
@@ -122,7 +151,7 @@ export function SignUpForm({ onSuccess }: SignUpFormProps) {
       </div>
       
       <p className="text-center text-sm text-muted-foreground">
-        By signing up, you agree to be matched with another participant after 4 days
+        By signing up, you agree to be matched with another participant in your group after 4 days
       </p>
     </form>
   );

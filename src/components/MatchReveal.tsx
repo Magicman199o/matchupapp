@@ -69,7 +69,7 @@ export function MatchReveal({ matchedTo, matchedBy }: MatchRevealProps) {
         <div className="text-center mt-8 p-6 bg-secondary/50 rounded-2xl">
           <Sparkles className="w-10 h-10 text-accent mx-auto mb-3" />
           <p className="text-muted-foreground">
-            We're still finding matches for you. Check back soon!
+            We're still finding matches for you in your group. Check back soon!
           </p>
         </div>
       )}

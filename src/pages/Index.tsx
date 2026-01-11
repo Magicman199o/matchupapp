@@ -4,7 +4,8 @@ import { SignUpForm } from '@/components/SignUpForm';
 import { Dashboard } from '@/components/Dashboard';
 import { FloatingHearts } from '@/components/FloatingHearts';
 import { getCurrentUser, type Participant } from '@/lib/matchmaking';
-import { Heart, Sparkles, Users, Clock, MessageCircle } from 'lucide-react';
+import { Heart, Sparkles, Users, Clock, MessageCircle, Shield } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 const Index = () => {
   const [currentUser, setCurrentUser] = useState<Participant | null>(null);
@@ -12,9 +13,12 @@ const Index = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const user = getCurrentUser();
-    setCurrentUser(user);
-    setIsLoading(false);
+    const loadUser = async () => {
+      const user = await getCurrentUser();
+      setCurrentUser(user);
+      setIsLoading(false);
+    };
+    loadUser();
   }, []);
 
   const handleSignUpSuccess = (participant: Participant) => {
@@ -74,9 +78,17 @@ const Index = () => {
             <Heart className="w-6 h-6 text-primary animate-heart" />
             <span className="font-display font-bold text-xl text-gradient">Matchup</span>
           </div>
-          <Button variant="hero-outline" onClick={() => setShowSignUp(true)}>
-            Join Now
-          </Button>
+          <div className="flex items-center gap-3">
+            <Link to="/admin">
+              <Button variant="ghost" size="sm">
+                <Shield className="w-4 h-4" />
+                <span className="hidden sm:inline">Admin</span>
+              </Button>
+            </Link>
+            <Button variant="hero-outline" onClick={() => setShowSignUp(true)}>
+              Join Now
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -86,7 +98,7 @@ const Index = () => {
           <div className="inline-flex items-center gap-2 px-4 py-2 bg-secondary rounded-full mb-8 animate-slide-up">
             <Sparkles className="w-4 h-4 text-primary" />
             <span className="text-sm font-medium text-secondary-foreground">
-              The fun way to make new connections
+              Team matching made fun
             </span>
           </div>
 
@@ -97,8 +109,8 @@ const Index = () => {
           </h1>
 
           <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-10 animate-slide-up" style={{ animationDelay: '0.2s' }}>
-            Sign up, wait 4 days, and discover who you're matched with! 
-            It's like Secret Santa, but for making friends.
+            Sign up with your organization or group, wait 4 days, and discover who you're matched with! 
+            It's like Secret Santa, but for making meaningful connections.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-slide-up" style={{ animationDelay: '0.3s' }}>
@@ -129,28 +141,34 @@ const Index = () => {
               How <span className="text-gradient">Matchup</span> Works
             </h2>
             <p className="text-muted-foreground text-lg max-w-xl mx-auto">
-              Simple, fun, and exciting. Here's your journey to finding a match.
+              Perfect for organizations, clubs, and teams looking to build connections.
             </p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-8">
+          <div className="grid md:grid-cols-4 gap-6">
             <FeatureCard
               icon={<Users className="w-8 h-8" />}
-              title="Sign Up"
-              description="Enter your name, WhatsApp number, and gender to join the matching pool."
+              title="Choose Your Group"
+              description="Enter your organization or group name to join the matching pool."
               step={1}
+            />
+            <FeatureCard
+              icon={<Heart className="w-8 h-8" />}
+              title="Sign Up"
+              description="Enter your name, WhatsApp number, and gender."
+              step={2}
             />
             <FeatureCard
               icon={<Clock className="w-8 h-8" />}
               title="Wait & Anticipate"
-              description="Watch the countdown. In 4 days, your match will be revealed!"
-              step={2}
+              description="Watch the countdown. In 4 days, your match is revealed!"
+              step={3}
             />
             <FeatureCard
               icon={<MessageCircle className="w-8 h-8" />}
               title="Connect"
-              description="See who you matched with AND who matched with you. Start chatting!"
-              step={3}
+              description="See who you matched with AND who matched with you!"
+              step={4}
             />
           </div>
         </section>
@@ -163,7 +181,7 @@ const Index = () => {
               Ready to find your match?
             </h2>
             <p className="text-muted-foreground text-lg mb-8 max-w-lg mx-auto">
-              Join hundreds of others looking to make meaningful connections. 
+              Create or join a group and start making meaningful connections. 
               Your perfect match could be just 4 days away!
             </p>
             <Button variant="hero" size="xl" onClick={() => setShowSignUp(true)}>
@@ -199,17 +217,17 @@ interface FeatureCardProps {
 
 function FeatureCard({ icon, title, description, step }: FeatureCardProps) {
   return (
-    <div className="bg-gradient-card rounded-2xl p-8 shadow-card border border-border/50 hover:shadow-glow transition-all duration-300 hover:-translate-y-1">
-      <div className="flex items-center gap-4 mb-4">
-        <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center text-primary">
+    <div className="bg-gradient-card rounded-2xl p-6 shadow-card border border-border/50 hover:shadow-glow transition-all duration-300 hover:-translate-y-1">
+      <div className="flex items-center gap-3 mb-3">
+        <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center text-primary">
           {icon}
         </div>
-        <span className="text-sm font-medium text-primary bg-primary/10 px-3 py-1 rounded-full">
+        <span className="text-xs font-medium text-primary bg-primary/10 px-2 py-1 rounded-full">
           Step {step}
         </span>
       </div>
-      <h3 className="text-xl font-display font-bold mb-2">{title}</h3>
-      <p className="text-muted-foreground">{description}</p>
+      <h3 className="text-lg font-display font-bold mb-2">{title}</h3>
+      <p className="text-sm text-muted-foreground">{description}</p>
     </div>
   );
 }
