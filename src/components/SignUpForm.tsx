@@ -157,7 +157,7 @@ export function SignUpForm({ onSuccess }: SignUpFormProps) {
       </div>
       
       <p className="text-center text-sm text-muted-foreground">
-        By signing up, you agree to be matched with another participant in your group after 4 days
+        By signing up, you agree to be matched with another participant in your group after 24 hours
       </p>
     </form>
   );

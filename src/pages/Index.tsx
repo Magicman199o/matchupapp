@@ -1,14 +1,16 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { SignUpForm } from '@/components/SignUpForm';
+import { LoginForm } from '@/components/LoginForm';
 import { Dashboard } from '@/components/Dashboard';
 import { FloatingHearts } from '@/components/FloatingHearts';
 import { getCurrentUser, type Participant } from '@/lib/matchmaking';
-import { Heart, Sparkles, Users, Clock, MessageCircle } from 'lucide-react';
+import { Heart, Sparkles, Users, Clock, MessageCircle, LogIn } from 'lucide-react';
 
 const Index = () => {
   const [currentUser, setCurrentUser] = useState<Participant | null>(null);
   const [showSignUp, setShowSignUp] = useState(false);
+  const [showLogin, setShowLogin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -23,11 +25,19 @@ const Index = () => {
   const handleSignUpSuccess = (participant: Participant) => {
     setCurrentUser(participant);
     setShowSignUp(false);
+    setShowLogin(false);
+  };
+
+  const handleLoginSuccess = (participant: Participant) => {
+    setCurrentUser(participant);
+    setShowSignUp(false);
+    setShowLogin(false);
   };
 
   const handleLogout = () => {
     setCurrentUser(null);
     setShowSignUp(false);
+    setShowLogin(false);
   };
 
   if (isLoading) {
@@ -66,6 +76,36 @@ const Index = () => {
     );
   }
 
+  if (showLogin) {
+    return (
+      <div className="min-h-screen bg-gradient-hero relative overflow-hidden">
+        <FloatingHearts />
+        
+        <header className="border-b border-border/50 bg-card/50 backdrop-blur-sm sticky top-0 z-40">
+          <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Heart className="w-6 h-6 text-primary animate-heart" />
+              <span className="font-display font-bold text-xl text-gradient">Matchup</span>
+            </div>
+            <Button variant="ghost" onClick={() => setShowLogin(false)}>
+              Back
+            </Button>
+          </div>
+        </header>
+
+        <main className="container mx-auto px-4 py-12 relative z-10">
+          <LoginForm 
+            onSuccess={handleLoginSuccess} 
+            onSignUp={() => {
+              setShowLogin(false);
+              setShowSignUp(true);
+            }}
+          />
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-hero relative overflow-hidden">
       <FloatingHearts />
@@ -77,9 +117,15 @@ const Index = () => {
             <Heart className="w-6 h-6 text-primary animate-heart" />
             <span className="font-display font-bold text-xl text-gradient">Matchup</span>
           </div>
-          <Button variant="hero-outline" onClick={() => setShowSignUp(true)}>
-            Join Now
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={() => setShowLogin(true)}>
+              <LogIn className="w-4 h-4 mr-1" />
+              Login
+            </Button>
+            <Button variant="hero-outline" onClick={() => setShowSignUp(true)}>
+              Join Now
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -100,7 +146,7 @@ const Index = () => {
           </h1>
 
           <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-10 animate-slide-up" style={{ animationDelay: '0.2s' }}>
-            Sign up with your organization or group, wait 4 days, and discover who you're matched with! 
+            Sign up with your organization or group, wait 24 hours, and discover who you're matched with! 
             It's like Secret Santa, but for making meaningful connections.
           </p>
 
@@ -118,9 +164,10 @@ const Index = () => {
               variant="hero-outline" 
               size="xl"
               className="w-full sm:w-auto"
-              onClick={() => document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' })}
+              onClick={() => setShowLogin(true)}
             >
-              Learn More
+              <LogIn className="w-5 h-5" />
+              Login Here
             </Button>
           </div>
         </div>
@@ -152,13 +199,13 @@ const Index = () => {
             <FeatureCard
               icon={<Clock className="w-8 h-8" />}
               title="Wait & Anticipate"
-              description="Watch the countdown. In 4 days, your match is revealed!"
+              description="Watch the countdown. In 24 hours, your match is revealed!"
               step={3}
             />
             <FeatureCard
               icon={<MessageCircle className="w-8 h-8" />}
               title="Connect"
-              description="See who you matched with AND who matched with you!"
+              description="See who you've been matched with and connect!"
               step={4}
             />
           </div>
@@ -173,12 +220,18 @@ const Index = () => {
             </h2>
             <p className="text-muted-foreground text-lg mb-8 max-w-lg mx-auto">
               Create or join a group and start making meaningful connections. 
-              Your perfect match could be just 4 days away!
+              Your perfect match could be just 24 hours away!
             </p>
-            <Button variant="hero" size="xl" onClick={() => setShowSignUp(true)}>
-              <Sparkles className="w-5 h-5" />
-              Get Matched Now
-            </Button>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+              <Button variant="hero" size="xl" onClick={() => setShowSignUp(true)}>
+                <Sparkles className="w-5 h-5" />
+                Get Matched Now
+              </Button>
+              <Button variant="hero-outline" size="lg" onClick={() => setShowLogin(true)}>
+                <LogIn className="w-4 h-4" />
+                Login to View Match
+              </Button>
+            </div>
           </div>
         </section>
       </main>

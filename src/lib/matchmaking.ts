@@ -13,7 +13,18 @@ export interface Participant {
   match_viewed?: boolean;
 }
 
-const MATCH_DELAY_DAYS = 4;
+export interface Profile {
+  id?: string;
+  participant_id: string;
+  photo_url?: string | null;
+  about?: string | null;
+  interests?: string[] | null;
+  wishlist?: string | null;
+  relationship_status?: string | null;
+  profile_visible: boolean;
+}
+
+const MATCH_DELAY_DAYS = 1; // Changed to 24 hours
 
 // Normalize group name: remove spaces, convert to lowercase, letters only
 export function normalizeGroupName(name: string): string {
@@ -236,4 +247,89 @@ export async function verifyAdminLogin(email: string, password: string): Promise
   }
   
   return false;
+}
+
+// Login participant by name, group, and whatsapp
+export async function loginParticipant(
+  name: string, 
+  whatsapp: string, 
+  groupName: string
+): Promise<Participant | null> {
+  const normalizedGroupName = normalizeGroupName(groupName);
+  
+  const { data, error } = await supabase
+    .from('participants')
+    .select('*')
+    .eq('name', name)
+    .eq('whatsapp', whatsapp)
+    .eq('group_name', normalizedGroupName)
+    .single();
+  
+  if (error || !data) {
+    console.error('Login failed:', error);
+    return null;
+  }
+  
+  setCurrentUser(data.id);
+  return data as Participant;
+}
+
+// Profile functions
+export async function getProfile(participantId: string): Promise<Profile | null> {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('participant_id', participantId)
+    .maybeSingle();
+  
+  if (error) {
+    console.error('Error fetching profile:', error);
+    return null;
+  }
+  
+  return data as Profile | null;
+}
+
+export async function upsertProfile(profile: Omit<Profile, 'id'>): Promise<boolean> {
+  const { error } = await supabase
+    .from('profiles')
+    .upsert(
+      {
+        participant_id: profile.participant_id,
+        photo_url: profile.photo_url,
+        about: profile.about,
+        interests: profile.interests,
+        wishlist: profile.wishlist,
+        relationship_status: profile.relationship_status,
+        profile_visible: profile.profile_visible,
+      },
+      { onConflict: 'participant_id' }
+    );
+  
+  if (error) {
+    console.error('Error upserting profile:', error);
+    return false;
+  }
+  
+  return true;
+}
+
+export async function uploadProfilePhoto(participantId: string, file: File): Promise<string | null> {
+  const fileExt = file.name.split('.').pop();
+  const fileName = `${participantId}.${fileExt}`;
+  
+  const { error: uploadError } = await supabase.storage
+    .from('profile-photos')
+    .upload(fileName, file, { upsert: true });
+  
+  if (uploadError) {
+    console.error('Error uploading photo:', uploadError);
+    return null;
+  }
+  
+  const { data } = supabase.storage
+    .from('profile-photos')
+    .getPublicUrl(fileName);
+  
+  return data.publicUrl;
 }
