@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { ProfileView } from '@/components/ProfileView';
 import { 
   getGroups, 
   getParticipantsByGroup, 
@@ -447,7 +448,10 @@ function ParticipantsTable({ participants, allParticipants }: ParticipantsTableP
                       {p.name.charAt(0).toUpperCase()}
                     </div>
                     <div>
-                      <p className="font-medium">{p.name}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium">{p.name}</p>
+                        <ProfileView participant={p} isAdmin={true} />
+                      </div>
                       <p className="text-xs text-muted-foreground flex items-center gap-1 sm:hidden">
                         <Phone className="w-3 h-3" />
                         {p.whatsapp}

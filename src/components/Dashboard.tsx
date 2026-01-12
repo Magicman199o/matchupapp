@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { CountdownTimer } from '@/components/CountdownTimer';
 import { MatchReveal } from '@/components/MatchReveal';
+import { ProfileSection } from '@/components/ProfileSection';
 import { type Participant, getMatchDetails, markMatchViewed, clearCurrentUser } from '@/lib/matchmaking';
-import { LogOut, Heart, Sparkles, Users, Clock } from 'lucide-react';
+import { LogOut, Heart, Sparkles, Users, Clock, User } from 'lucide-react';
 
 interface DashboardProps {
   participant: Participant;
@@ -12,10 +13,9 @@ interface DashboardProps {
 
 export function Dashboard({ participant, onLogout }: DashboardProps) {
   const [matchedTo, setMatchedTo] = useState<Participant | null>(null);
-  const [matchedBy, setMatchedBy] = useState<Participant | null>(null);
   const [isRevealed, setIsRevealed] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [hasMatch, setHasMatch] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
 
   const revealDate = new Date(participant.match_reveal_date);
   const now = new Date();
@@ -23,15 +23,12 @@ export function Dashboard({ participant, onLogout }: DashboardProps) {
 
   useEffect(() => {
     const checkMatching = async () => {
-      // Always fetch match details to check if user has been matched
-      const { matchedTo: to, matchedBy: by } = await getMatchDetails(participant.id);
+      // Fetch match details
+      const { matchedTo: to } = await getMatchDetails(participant.id);
       setMatchedTo(to);
-      setMatchedBy(by);
-      setHasMatch(!!to || !!by);
       
-      // Only reveal if countdown is complete
-      if (canReveal && (to || by)) {
-        // Mark match as viewed when user sees it
+      // Only reveal if countdown is complete AND user has a match
+      if (canReveal && to) {
         await markMatchViewed(participant.id);
         setIsRevealed(true);
       }
@@ -48,11 +45,10 @@ export function Dashboard({ participant, onLogout }: DashboardProps) {
   };
 
   const handleCountdownComplete = async () => {
-    const { matchedTo: to, matchedBy: by } = await getMatchDetails(participant.id);
+    const { matchedTo: to } = await getMatchDetails(participant.id);
     setMatchedTo(to);
-    setMatchedBy(by);
     
-    if (to || by) {
+    if (to) {
       await markMatchViewed(participant.id);
       setIsRevealed(true);
     }
@@ -76,6 +72,14 @@ export function Dashboard({ participant, onLogout }: DashboardProps) {
           </div>
           
           <div className="flex items-center gap-4">
+            <Button 
+              variant={showProfile ? "default" : "ghost"} 
+              size="sm" 
+              onClick={() => setShowProfile(!showProfile)}
+            >
+              <User className="w-4 h-4" />
+              <span className="hidden sm:inline">Profile</span>
+            </Button>
             <span className="text-sm text-muted-foreground hidden sm:block">
               Hey, <span className="font-medium text-foreground">{participant.name}</span>
             </span>
@@ -98,25 +102,21 @@ export function Dashboard({ participant, onLogout }: DashboardProps) {
           </div>
         </div>
 
-        {!isRevealed ? (
+        {showProfile ? (
+          <div className="max-w-md mx-auto">
+            <ProfileSection participantId={participant.id} />
+          </div>
+        ) : !isRevealed ? (
           <div className="max-w-3xl mx-auto text-center">
             <div className="mb-10 animate-slide-up">
               <div className="inline-flex items-center justify-center p-4 bg-primary/10 rounded-full mb-6">
                 <Sparkles className="w-10 h-10 text-primary" />
               </div>
               <h1 className="text-3xl md:text-4xl font-display font-bold mb-4">
-                {hasMatch ? (
-                  <>Your match is <span className="text-gradient">ready!</span></>
-                ) : (
-                  <>Awaiting a <span className="text-gradient">match</span></>
-                )}
+                Awaiting a <span className="text-gradient">match</span>
               </h1>
               <p className="text-muted-foreground text-lg max-w-xl mx-auto">
-                {hasMatch ? (
-                  <>Hold tight, {participant.name}! Your match within <span className="font-semibold text-primary">{participant.group_name}</span> will be revealed after the countdown.</>
-                ) : (
-                  <>We're waiting for more participants to join <span className="font-semibold text-primary">{participant.group_name}</span>. You'll be matched as soon as someone is available!</>
-                )}
+                <span className="font-semibold text-primary">{participant.name}</span>, your match will be revealed in
               </p>
             </div>
 
@@ -132,15 +132,15 @@ export function Dashboard({ participant, onLogout }: DashboardProps) {
                   <ul className="text-sm text-muted-foreground space-y-2 text-left">
                     <li className="flex items-center gap-2">
                       <span className="text-primary">1.</span>
-                      We wait for more participants in your group
+                      We match you with someone in your group
                     </li>
                     <li className="flex items-center gap-2">
                       <span className="text-primary">2.</span>
-                      After 4 days, matches are revealed
+                      After 24 hours, your match is revealed
                     </li>
                     <li className="flex items-center gap-2">
                       <span className="text-primary">3.</span>
-                      You'll see who you matched with AND who matched with you
+                      You'll see who you've been matched with
                     </li>
                     <li className="flex items-center gap-2">
                       <span className="text-primary">4.</span>
@@ -161,7 +161,7 @@ export function Dashboard({ participant, onLogout }: DashboardProps) {
             )}
           </div>
         ) : (
-          <MatchReveal matchedTo={matchedTo} matchedBy={matchedBy} />
+          <MatchReveal matchedTo={matchedTo} />
         )}
       </main>
     </div>

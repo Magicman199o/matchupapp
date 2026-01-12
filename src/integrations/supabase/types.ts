@@ -95,6 +95,53 @@ export type Database = {
           },
         ]
       }
+      profiles: {
+        Row: {
+          about: string | null
+          created_at: string
+          id: string
+          interests: string[] | null
+          participant_id: string
+          photo_url: string | null
+          profile_visible: boolean
+          relationship_status: string | null
+          updated_at: string
+          wishlist: string | null
+        }
+        Insert: {
+          about?: string | null
+          created_at?: string
+          id?: string
+          interests?: string[] | null
+          participant_id: string
+          photo_url?: string | null
+          profile_visible?: boolean
+          relationship_status?: string | null
+          updated_at?: string
+          wishlist?: string | null
+        }
+        Update: {
+          about?: string | null
+          created_at?: string
+          id?: string
+          interests?: string[] | null
+          participant_id?: string
+          photo_url?: string | null
+          profile_visible?: boolean
+          relationship_status?: string | null
+          updated_at?: string
+          wishlist?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_participant_id_fkey"
+            columns: ["participant_id"]
+            isOneToOne: true
+            referencedRelation: "participants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
