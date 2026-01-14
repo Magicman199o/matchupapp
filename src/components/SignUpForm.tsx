@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { registerParticipant, normalizeGroupName, type Participant } from '@/lib/matchmaking';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { registerParticipant, getAdminGroups, normalizeGroupName, type Participant, type Group } from '@/lib/matchmaking';
 import { Heart, User, Phone, Sparkles, Users } from 'lucide-react';
 
 interface SignUpFormProps {
@@ -17,6 +18,16 @@ export function SignUpForm({ onSuccess }: SignUpFormProps) {
   const [groupName, setGroupName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [adminGroups, setAdminGroups] = useState<Group[]>([]);
+
+  useEffect(() => {
+    loadGroups();
+  }, []);
+
+  const loadGroups = async () => {
+    const groups = await getAdminGroups();
+    setAdminGroups(groups);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,24 +67,41 @@ export function SignUpForm({ onSuccess }: SignUpFormProps) {
           <div className="space-y-2">
             <Label htmlFor="groupName" className="text-sm font-medium flex items-center gap-2">
               <Users className="w-4 h-4 text-primary" />
-              Group / Organization Name
+              Group / Organization
             </Label>
-            <Input
-              id="groupName"
-              type="text"
-              placeholder="e.g., AcmeCorp, BookClub, ClassOf2024"
-              value={groupName}
-              onChange={(e) => {
-                // Only allow letters
-                const value = e.target.value.replace(/[^a-zA-Z]/g, '');
-                setGroupName(value);
-              }}
-              required
-              className="h-12 rounded-xl border-border/50 bg-background/50 focus:border-primary focus:ring-primary/20"
-            />
-            <p className="text-xs text-muted-foreground">
-              Letters only • Will be normalized: {groupName ? normalizeGroupName(groupName) : 'yourgroup'}
-            </p>
+            {adminGroups.length > 0 ? (
+              <Select value={groupName} onValueChange={setGroupName}>
+                <SelectTrigger className="h-12 rounded-xl border-border/50 bg-background/50">
+                  <SelectValue placeholder="Select your group" />
+                </SelectTrigger>
+                <SelectContent>
+                  {adminGroups.map(group => (
+                    <SelectItem key={group.id} value={group.name}>
+                      {group.display_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <>
+                <Input
+                  id="groupName"
+                  type="text"
+                  placeholder="e.g., AcmeCorp, BookClub, ClassOf2024"
+                  value={groupName}
+                  onChange={(e) => {
+                    // Only allow letters
+                    const value = e.target.value.replace(/[^a-zA-Z]/g, '');
+                    setGroupName(value);
+                  }}
+                  required
+                  className="h-12 rounded-xl border-border/50 bg-background/50 focus:border-primary focus:ring-primary/20"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Letters only • Will be normalized: {groupName ? normalizeGroupName(groupName) : 'yourgroup'}
+                </p>
+              </>
+            )}
           </div>
 
           <div className="space-y-2">

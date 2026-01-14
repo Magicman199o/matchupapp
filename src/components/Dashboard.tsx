@@ -3,8 +3,10 @@ import { Button } from '@/components/ui/button';
 import { CountdownTimer } from '@/components/CountdownTimer';
 import { MatchReveal } from '@/components/MatchReveal';
 import { ProfileSection } from '@/components/ProfileSection';
-import { type Participant, getMatchDetails, markMatchViewed, clearCurrentUser } from '@/lib/matchmaking';
-import { LogOut, Heart, Sparkles, Users, Clock, User } from 'lucide-react';
+import { SponsorMarquee } from '@/components/SponsorMarquee';
+import { InstantMatchModal } from '@/components/InstantMatchModal';
+import { type Participant, getMatchDetails, markMatchViewed, clearCurrentUser, tryInstantMatch } from '@/lib/matchmaking';
+import { LogOut, Heart, Sparkles, Users, Clock, User, Zap } from 'lucide-react';
 
 interface DashboardProps {
   participant: Participant;
@@ -16,6 +18,9 @@ export function Dashboard({ participant, onLogout }: DashboardProps) {
   const [isRevealed, setIsRevealed] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [showProfile, setShowProfile] = useState(false);
+  const [showInstantModal, setShowInstantModal] = useState(false);
+  const [instantMatchResult, setInstantMatchResult] = useState<Participant | null>(null);
+  const [isInstantMatching, setIsInstantMatching] = useState(false);
 
   const revealDate = new Date(participant.match_reveal_date);
   const now = new Date();
@@ -54,6 +59,26 @@ export function Dashboard({ participant, onLogout }: DashboardProps) {
     }
   };
 
+  const handleInstantMatch = async () => {
+    setIsInstantMatching(true);
+    const match = await tryInstantMatch(participant.id);
+    setInstantMatchResult(match);
+    setShowInstantModal(true);
+    setIsInstantMatching(false);
+  };
+
+  const handleInstantMatchView = () => {
+    if (instantMatchResult) {
+      setMatchedTo(instantMatchResult);
+      setIsRevealed(true);
+      setShowInstantModal(false);
+    }
+  };
+
+  const handleProfileSave = () => {
+    setShowProfile(false);
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-hero flex items-center justify-center">
@@ -71,25 +96,28 @@ export function Dashboard({ participant, onLogout }: DashboardProps) {
             <span className="font-display font-bold text-xl text-gradient">Matchup</span>
           </div>
           
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 sm:gap-4">
             <Button 
               variant={showProfile ? "default" : "ghost"} 
               size="sm" 
               onClick={() => setShowProfile(!showProfile)}
             >
               <User className="w-4 h-4" />
-              <span className="hidden sm:inline">Profile</span>
+              <span className="ml-1">Profile</span>
             </Button>
             <span className="text-sm text-muted-foreground hidden sm:block">
               Hey, <span className="font-medium text-foreground">{participant.name}</span>
             </span>
             <Button variant="ghost" size="sm" onClick={handleLogout}>
               <LogOut className="w-4 h-4" />
-              <span className="hidden sm:inline">Logout</span>
+              <span className="hidden sm:inline ml-1">Logout</span>
             </Button>
           </div>
         </div>
       </header>
+
+      {/* Sponsors Marquee */}
+      <SponsorMarquee />
 
       <main className="container mx-auto px-4 py-12">
         {/* Group Badge */}
@@ -104,7 +132,11 @@ export function Dashboard({ participant, onLogout }: DashboardProps) {
 
         {showProfile ? (
           <div className="max-w-md mx-auto">
-            <ProfileSection participantId={participant.id} />
+            <ProfileSection 
+              participantId={participant.id} 
+              participantName={participant.name}
+              onSave={handleProfileSave}
+            />
           </div>
         ) : !isRevealed ? (
           <div className="max-w-3xl mx-auto text-center">
@@ -126,6 +158,29 @@ export function Dashboard({ participant, onLogout }: DashboardProps) {
                   targetDate={revealDate} 
                   onComplete={handleCountdownComplete}
                 />
+
+                {/* Instant Match Button */}
+                <div className="mt-8">
+                  <Button 
+                    variant="hero-outline" 
+                    size="lg"
+                    onClick={handleInstantMatch}
+                    disabled={isInstantMatching}
+                    className="w-full sm:w-auto"
+                  >
+                    {isInstantMatching ? (
+                      <span className="flex items-center gap-2">
+                        <span className="animate-spin">✨</span>
+                        Finding match...
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-2">
+                        <Zap className="w-5 h-5" />
+                        Get an Instant Match
+                      </span>
+                    )}
+                  </Button>
+                </div>
 
                 <div className="mt-16 p-6 bg-card/50 rounded-2xl border border-border/50 max-w-md mx-auto">
                   <h3 className="font-display font-semibold mb-2">How it works</h3>
@@ -153,10 +208,18 @@ export function Dashboard({ participant, onLogout }: DashboardProps) {
               <div className="p-8 bg-card/50 rounded-2xl border border-border/50 max-w-md mx-auto">
                 <Clock className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                 <h3 className="font-display font-semibold mb-2">Waiting for a match</h3>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-sm text-muted-foreground mb-4">
                   Your countdown has completed, but no one has been matched with you yet. 
                   Check back soon as more participants join your group!
                 </p>
+                <Button 
+                  variant="hero-outline"
+                  onClick={handleInstantMatch}
+                  disabled={isInstantMatching}
+                >
+                  <Zap className="w-4 h-4 mr-2" />
+                  Try Instant Match
+                </Button>
               </div>
             )}
           </div>
@@ -164,6 +227,14 @@ export function Dashboard({ participant, onLogout }: DashboardProps) {
           <MatchReveal matchedTo={matchedTo} />
         )}
       </main>
+
+      <InstantMatchModal
+        isOpen={showInstantModal}
+        onClose={() => setShowInstantModal(false)}
+        hasMatch={!!instantMatchResult}
+        matchName={instantMatchResult?.name}
+        onViewMatch={handleInstantMatchView}
+      />
     </div>
   );
 }

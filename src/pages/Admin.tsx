@@ -3,6 +3,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ProfileView } from '@/components/ProfileView';
+import { AdminGroupsSection } from '@/components/AdminGroupsSection';
+import { AdminSponsorsSection } from '@/components/AdminSponsorsSection';
+import { AdminEditParticipant } from '@/components/AdminEditParticipant';
 import { 
   getGroups, 
   getParticipantsByGroup, 
@@ -256,13 +259,19 @@ const Admin = () => {
           />
         </div>
 
-        <div className="grid lg:grid-cols-3 gap-6">
+        <div className="grid lg:grid-cols-4 gap-6">
+          {/* Admin Management Section */}
+          <div className="lg:col-span-1 space-y-6">
+            <AdminGroupsSection />
+            <AdminSponsorsSection />
+          </div>
+
           {/* Groups List */}
           <div className="lg:col-span-1">
             <div className="bg-gradient-card rounded-2xl p-6 shadow-card border border-border/50">
               <h2 className="font-display font-bold text-lg mb-4 flex items-center gap-2">
                 <Users className="w-5 h-5 text-primary" />
-                Groups
+                Active Groups
               </h2>
               
               {groups.length === 0 ? (
@@ -358,7 +367,11 @@ const Admin = () => {
                     </Button>
                   </div>
                   
-                  <ParticipantsTable participants={participants} allParticipants={allParticipants} />
+                  <ParticipantsTable 
+                    participants={participants} 
+                    allParticipants={allParticipants} 
+                    onUpdate={loadData}
+                  />
                 </>
               ) : (
                 <>
@@ -369,7 +382,11 @@ const Admin = () => {
                   <p className="text-muted-foreground text-sm mb-4">
                     Select a group to view its members, or see all signups below.
                   </p>
-                  <ParticipantsTable participants={allParticipants} allParticipants={allParticipants} />
+                  <ParticipantsTable 
+                    participants={allParticipants} 
+                    allParticipants={allParticipants}
+                    onUpdate={loadData}
+                  />
                 </>
               )}
             </div>
@@ -401,9 +418,10 @@ function StatCard({ icon, label, value }: StatCardProps) {
 interface ParticipantsTableProps {
   participants: Participant[];
   allParticipants: Participant[];
+  onUpdate: () => void;
 }
 
-function ParticipantsTable({ participants, allParticipants }: ParticipantsTableProps) {
+function ParticipantsTable({ participants, allParticipants, onUpdate }: ParticipantsTableProps) {
   const getParticipantName = (id: string | null | undefined) => {
     if (!id) return '-';
     const p = allParticipants.find(p => p.id === id);
@@ -448,8 +466,9 @@ function ParticipantsTable({ participants, allParticipants }: ParticipantsTableP
                       {p.name.charAt(0).toUpperCase()}
                     </div>
                     <div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1">
                         <p className="font-medium">{p.name}</p>
+                        <AdminEditParticipant participant={p} onUpdate={onUpdate} />
                         <ProfileView participant={p} isAdmin={true} />
                       </div>
                       <p className="text-xs text-muted-foreground flex items-center gap-1 sm:hidden">

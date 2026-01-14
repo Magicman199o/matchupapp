@@ -4,8 +4,9 @@ import { SignUpForm } from '@/components/SignUpForm';
 import { LoginForm } from '@/components/LoginForm';
 import { Dashboard } from '@/components/Dashboard';
 import { FloatingHearts } from '@/components/FloatingHearts';
+import { SponsorMarquee } from '@/components/SponsorMarquee';
 import { getCurrentUser, type Participant } from '@/lib/matchmaking';
-import { Heart, Sparkles, Users, Clock, MessageCircle, LogIn } from 'lucide-react';
+import { Heart, Sparkles, Users, Clock, MessageCircle, LogIn, User } from 'lucide-react';
 
 const Index = () => {
   const [currentUser, setCurrentUser] = useState<Participant | null>(null);
@@ -120,7 +121,7 @@ const Index = () => {
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="sm" onClick={() => setShowLogin(true)}>
               <LogIn className="w-4 h-4 mr-1" />
-              Login
+              <span>Login</span>
             </Button>
             <Button variant="hero-outline" onClick={() => setShowSignUp(true)}>
               Join Now
@@ -128,6 +129,9 @@ const Index = () => {
           </div>
         </div>
       </header>
+
+      {/* Sponsors Marquee */}
+      <SponsorMarquee />
 
       {/* Hero Section */}
       <main className="container mx-auto px-4 py-16 md:py-24 relative z-10">
@@ -167,7 +171,7 @@ const Index = () => {
               onClick={() => setShowLogin(true)}
             >
               <LogIn className="w-5 h-5" />
-              Login Here
+              <span>Login</span>
             </Button>
           </div>
         </div>
@@ -187,7 +191,7 @@ const Index = () => {
             <FeatureCard
               icon={<Users className="w-8 h-8" />}
               title="Choose Your Group"
-              description="Enter your organization or group name to join the matching pool."
+              description="Select your organization or group from the dropdown to join the matching pool."
               step={1}
             />
             <FeatureCard
@@ -229,7 +233,7 @@ const Index = () => {
               </Button>
               <Button variant="hero-outline" size="lg" onClick={() => setShowLogin(true)}>
                 <LogIn className="w-4 h-4" />
-                Login to View Match
+                <span>Login</span> to View Match
               </Button>
             </div>
           </div>
