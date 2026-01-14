@@ -22,6 +22,22 @@ export interface Profile {
   wishlist?: string | null;
   relationship_status?: string | null;
   profile_visible: boolean;
+  display_name?: string | null;
+}
+
+export interface Group {
+  id: string;
+  name: string;
+  display_name: string;
+  created_at: string;
+}
+
+export interface Sponsor {
+  id: string;
+  name: string;
+  icon_url: string | null;
+  link: string;
+  created_at: string;
 }
 
 const MATCH_DELAY_DAYS = 1; // Changed to 24 hours
@@ -76,6 +92,90 @@ export async function getGroups(): Promise<{ name: string; count: number }[]> {
   });
   
   return Object.entries(groupCounts).map(([name, count]) => ({ name, count }));
+}
+
+// Get admin-managed groups
+export async function getAdminGroups(): Promise<Group[]> {
+  const { data, error } = await supabase
+    .from('groups')
+    .select('*')
+    .order('created_at', { ascending: false });
+  
+  if (error) {
+    console.error('Error fetching admin groups:', error);
+    return [];
+  }
+  
+  return data as Group[];
+}
+
+export async function createGroup(name: string, displayName: string): Promise<boolean> {
+  const { error } = await supabase
+    .from('groups')
+    .insert({ name, display_name: displayName });
+  
+  if (error) {
+    console.error('Error creating group:', error);
+    return false;
+  }
+  
+  return true;
+}
+
+export async function deleteGroup(id: string): Promise<boolean> {
+  const { error } = await supabase
+    .from('groups')
+    .delete()
+    .eq('id', id);
+  
+  if (error) {
+    console.error('Error deleting group:', error);
+    return false;
+  }
+  
+  return true;
+}
+
+// Sponsors functions
+export async function getSponsors(): Promise<Sponsor[]> {
+  const { data, error } = await supabase
+    .from('sponsors')
+    .select('*')
+    .order('created_at', { ascending: false });
+  
+  if (error) {
+    console.error('Error fetching sponsors:', error);
+    return [];
+  }
+  
+  return data as Sponsor[];
+}
+
+export async function createSponsor(name: string, iconUrl: string | null, link: string): Promise<boolean> {
+  const { error } = await supabase
+    .from('sponsors')
+    .insert({ name, icon_url: iconUrl, link });
+  
+  if (error) {
+    console.error('Error creating sponsor:', error);
+    return false;
+  }
+  
+  return true;
+}
+
+export async function deleteSponsor(id: string): Promise<boolean> {
+  const { error } = await supabase
+    .from('sponsors')
+    .delete()
+    .eq('id', id);
+  
+  if (error) {
+    console.error('Error deleting sponsor:', error);
+    return false;
+  }
+  
+  return true;
 }
 
 export function getCurrentUserId(): string | null {
@@ -143,6 +243,24 @@ export async function registerParticipant(
   
   setCurrentUser(data.id);
   return data as Participant;
+}
+
+// Update participant details (admin function)
+export async function updateParticipant(
+  id: string, 
+  updates: Partial<Pick<Participant, 'name' | 'whatsapp' | 'gender' | 'group_name'>>
+): Promise<boolean> {
+  const { error } = await supabase
+    .from('participants')
+    .update(updates)
+    .eq('id', id);
+  
+  if (error) {
+    console.error('Error updating participant:', error);
+    return false;
+  }
+  
+  return true;
 }
 
 // Use database function for atomic matching
@@ -220,6 +338,53 @@ export async function getMatchDetails(userId: string): Promise<{ matchedTo: Part
   }
   
   return { matchedTo, matchedBy };
+}
+
+// Try instant match - finds an available match immediately
+export async function tryInstantMatch(userId: string): Promise<Participant | null> {
+  // Get the current user
+  const { data: user, error: userError } = await supabase
+    .from('participants')
+    .select('*')
+    .eq('id', userId)
+    .single();
+  
+  if (userError || !user) {
+    console.error('Error fetching user:', userError);
+    return null;
+  }
+  
+  // If already matched, return the match
+  if (user.matched_to) {
+    const { data } = await supabase
+      .from('participants')
+      .select('*')
+      .eq('id', user.matched_to)
+      .single();
+    return data as Participant | null;
+  }
+  
+  // Try to trigger matching and get result
+  await performGroupMatching(user.group_name);
+  
+  // Check if we got a match now
+  const { data: updatedUser } = await supabase
+    .from('participants')
+    .select('*')
+    .eq('id', userId)
+    .single();
+  
+  if (updatedUser?.matched_to) {
+    await markMatchViewed(userId);
+    const { data } = await supabase
+      .from('participants')
+      .select('*')
+      .eq('id', updatedUser.matched_to)
+      .single();
+    return data as Participant | null;
+  }
+  
+  return null;
 }
 
 export function formatWhatsAppLink(phone: string): string {
@@ -302,6 +467,7 @@ export async function upsertProfile(profile: Omit<Profile, 'id'>): Promise<boole
         wishlist: profile.wishlist,
         relationship_status: profile.relationship_status,
         profile_visible: profile.profile_visible,
+        display_name: profile.display_name,
       },
       { onConflict: 'participant_id' }
     );

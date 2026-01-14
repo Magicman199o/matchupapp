@@ -6,12 +6,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { getProfile, upsertProfile, uploadProfilePhoto, type Profile } from '@/lib/matchmaking';
-import { Camera, X, Save, User, Heart, Gift, Sparkles } from 'lucide-react';
+import { getProfile, upsertProfile, uploadProfilePhoto, getCurrentUser, type Profile } from '@/lib/matchmaking';
+import { Camera, X, Save, User, Heart, Gift, Sparkles, Home } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface ProfileSectionProps {
   participantId: string;
+  participantName: string;
+  onSave?: () => void;
 }
 
 const INTEREST_OPTIONS = [
@@ -23,13 +25,14 @@ const RELATIONSHIP_STATUS_OPTIONS = [
   'Single', 'In a relationship', 'Complicated', 'Prefer not to say'
 ];
 
-export function ProfileSection({ participantId }: ProfileSectionProps) {
+export function ProfileSection({ participantId, participantName, onSave }: ProfileSectionProps) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const [displayName, setDisplayName] = useState(participantName);
   const [about, setAbout] = useState('');
   const [interests, setInterests] = useState<string[]>([]);
   const [wishlist, setWishlist] = useState('');
@@ -44,6 +47,7 @@ export function ProfileSection({ participantId }: ProfileSectionProps) {
     const existingProfile = await getProfile(participantId);
     if (existingProfile) {
       setProfile(existingProfile);
+      setDisplayName(existingProfile.display_name || participantName);
       setAbout(existingProfile.about || '');
       setInterests(existingProfile.interests || []);
       setWishlist(existingProfile.wishlist || '');
@@ -99,10 +103,14 @@ export function ProfileSection({ participantId }: ProfileSectionProps) {
       wishlist,
       relationship_status: relationshipStatus,
       profile_visible: profileVisible,
+      display_name: displayName,
     });
 
     if (success) {
       toast.success('Profile saved!');
+      if (onSave) {
+        onSave();
+      }
     } else {
       toast.error('Failed to save profile');
     }
@@ -150,6 +158,21 @@ export function ProfileSection({ participantId }: ProfileSectionProps) {
             className="hidden"
           />
           <p className="text-xs text-muted-foreground mt-2">Max 600KB</p>
+        </div>
+
+        {/* Display Name */}
+        <div className="space-y-2">
+          <Label htmlFor="displayName" className="flex items-center gap-2">
+            <User className="w-4 h-4 text-primary" />
+            Name
+          </Label>
+          <Input
+            id="displayName"
+            placeholder="Your display name"
+            value={displayName}
+            onChange={(e) => setDisplayName(e.target.value)}
+            className="rounded-xl"
+          />
         </div>
 
         {/* About */}
